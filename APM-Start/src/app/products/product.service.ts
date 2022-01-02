@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-import {BehaviorSubject, combineLatest, Observable, throwError} from 'rxjs';
-import {catchError, map, tap} from 'rxjs/operators';
+import {BehaviorSubject, combineLatest, merge, Observable, Subject, throwError} from 'rxjs';
+import {catchError, map, scan, tap} from 'rxjs/operators';
 
 import { Product } from './product';
 import { Supplier } from '../suppliers/supplier';
@@ -14,11 +14,18 @@ import {ProductCategoryService} from '../product-categories/product-category.ser
   providedIn: 'root'
 })
 export class ProductService {
+
+  constructor(private http: HttpClient,
+              private supplierService: SupplierService,
+              private productCategoryService: ProductCategoryService) { }
   private productsUrl = 'api/products';
   private suppliersUrl = this.supplierService.suppliersUrl;
 
   private productSelectedSubject = new BehaviorSubject<number>(0);
   productSelectedAction$ = this.productSelectedSubject.asObservable();
+
+  private productInsertedSubject = new Subject<Product>();
+  productInsertedAction$ = this.productInsertedSubject.asObservable();
 
   products$ = this.http.get<Product[]>(this.productsUrl)
     .pipe(
@@ -42,6 +49,13 @@ export class ProductService {
       catchError(this.handleError)
     );
 
+  productsWithAdd$ = merge(
+    this.productsWithCategories$,
+    this.productInsertedAction$
+  ).pipe(
+    scan((acc: Product[], value: Product) => [...acc, value])
+  );
+
   selectedProduct$ = combineLatest([
     this.productsWithCategories$,
     this.productSelectedAction$
@@ -52,13 +66,14 @@ export class ProductService {
       tap(product => console.log('selected product', product))
     );
 
+  addProduct(newProduct?: Product): void{
+    newProduct = newProduct || this.fakeProduct();
+    this.productInsertedSubject.next(newProduct);
+  }
+
   selectedProductChanged(selectedProductId: number): void {
     this.productSelectedSubject.next(selectedProductId);
   }
-
-  constructor(private http: HttpClient,
-              private supplierService: SupplierService,
-              private productCategoryService: ProductCategoryService) { }
 
   private fakeProduct(): Product {
     return {
@@ -68,7 +83,7 @@ export class ProductService {
       description: 'Our new product',
       price: 8.9,
       categoryId: 3,
-      // category: 'Toolbox',
+      category: 'Toolbox',
       quantityInStock: 30
     };
   }
