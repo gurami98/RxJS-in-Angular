@@ -12,7 +12,8 @@ import {ProductCategoryService} from '../product-categories/product-category.ser
 })
 export class ProductListComponent {
   pageTitle = 'Product List';
-  errorMessage = '';
+  private errorMessageSubject = new Subject<string>();
+  errorMessage$ = this.errorMessageSubject.asObservable();
 
   private categorySelectedSubject = new BehaviorSubject<number>(0);
   categorySelectedAction$ = this.categorySelectedSubject.asObservable();
@@ -26,7 +27,7 @@ export class ProductListComponent {
         selectedCategoryId ? product.categoryId === selectedCategoryId : true)
     ),
     catchError(error => {
-      this.errorMessage = error;
+      this.errorMessageSubject.next(error);
       return EMPTY;
     })
   );
@@ -34,7 +35,7 @@ export class ProductListComponent {
   categories$ = this.productCategoryService.productCategories$
     .pipe(
       catchError(error => {
-        this.errorMessage = error;
+        this.errorMessageSubject.next(error);
         return EMPTY;
       })
     );
