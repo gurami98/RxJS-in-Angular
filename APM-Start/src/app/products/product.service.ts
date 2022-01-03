@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
 import {BehaviorSubject, combineLatest, merge, Observable, Subject, throwError} from 'rxjs';
-import {catchError, map, scan, tap} from 'rxjs/operators';
+import {catchError, map, scan, shareReplay, tap} from 'rxjs/operators';
 
 import { Product } from './product';
 import { Supplier } from '../suppliers/supplier';
@@ -42,10 +42,11 @@ export class ProductService {
         products.map(product => ({
           ...product,
           price: product.price * 1.5,
-          category: categories.find(c => product.categoryId === c.id).name
+          category: categories.find(c => product.categoryId === c.id).name,
+          searchKey: [product.productName]
         }) as Product)
       ),
-      tap(data => console.log('Products', data)),
+      shareReplay(1),
       catchError(this.handleError)
     );
 
@@ -63,8 +64,9 @@ export class ProductService {
       map(([products, selectedCategoryId]) =>
         products.find(product => product.id === selectedCategoryId)
       ),
-      tap(product => console.log('selected product', product))
-    );
+      tap(product => console.log('selected product', product)),
+      shareReplay(1),
+  );
 
   addProduct(newProduct?: Product): void{
     newProduct = newProduct || this.fakeProduct();
